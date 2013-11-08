@@ -116,8 +116,8 @@ func getNutrientsAndFoods() (map[int]Nutrient, map[string]int, map[int]Food) {
         units := stripTwiddles(record[1])
         description := stripTwiddles(record[3])
 
-        // Drop the \d:\d entries
-        matched, err := regexp.MatchString("^(2\\d|1[123456790]):\\d+", description)
+        // Drop the \d:\d entries but keep 18:3 omega-3s
+        matched, err := regexp.MatchString("^(2?\\d:\\d+|1[0-9]:[124567890])", description)
         if err != nil { panic(err) }
         if matched {
           continue
