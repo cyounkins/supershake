@@ -7,6 +7,7 @@ import (
     "io"
     "math"
     "os"
+    "regexp"
     "runtime/pprof"
     "strconv"
     "strings"
@@ -29,6 +30,14 @@ type Food struct {
     description string
     manufacturer string
     nutrients []NutrientInFood
+}
+
+func (food *Food) PrintNutrients(numGrams int) {
+  for _, nutrientInFood := range food.nutrients {
+    nutrient := nutrientInFood.nutrient
+    totalUnits := nutrientInFood.amountPerG * float64(numGrams)
+    fmt.Printf("%f%s of %s, ", totalUnits, nutrient.units, nutrient.description)
+  }
 }
 
 type Recipe struct {
@@ -104,6 +113,13 @@ func getNutrientsAndFoods() (map[int]Nutrient, map[string]int, map[int]Food) {
         if err != nil { panic(err) }
         units := stripTwiddles(record[1])
         description := stripTwiddles(record[3])
+
+        // Drop the \d:\d entries
+        matched, err := regexp.MatchString("\\d+:\\d+", description)
+        if err != nil { panic(err) }
+        if matched {
+          continue
+        }
 
         // Correction of duplicate description field
         if id == 208 {
@@ -307,6 +323,12 @@ func getNutrientsAndFoods() (map[int]Nutrient, map[string]int, map[int]Food) {
         if numDataPoints == 0 {
             // Assume they are wrong
             nutrientAmount64 = float64(0)
+        }
+
+        _, exists := nutrients[nutrientId]
+        // Skip the nutrient if we skipped it on nutrient definition import
+        if !exists {
+          continue
         }
 
         nif := NutrientInFood{}
@@ -568,8 +590,12 @@ func (recipe *Recipe) Score(nutrients map[int]Nutrient, allFoods map[int]Food, n
     recipe.AssertConsistency(allFoods)
     penalty := float64(0)
 
+    // Need some fat, and not too concerned about excess intake given my build,
+    // but let's not go crazy with it.
+    penalty += recipe.calculatePenaltyForNutrient(nutrientNameToId, "Total lipid (fat)", 60, 300, verbose)
+
     // 2700 kcal recommended for men
-    //penalty += recipe.calculatePenaltyForNutrient(nutrientNameToId, "Energy, kcal", 2700, 10000, verbose)
+    penalty += recipe.calculatePenaltyForNutrient(nutrientNameToId, "Energy, kcal", 2700, 10000, verbose)
 
     // 51g <= protein <= 3510g (?!)
     // 51g is recommended minimum
@@ -730,6 +756,13 @@ func (recipe *Recipe) Score(nutrients map[int]Nutrient, allFoods map[int]Food, n
     return penalty
 }
 
+func (recipe *Recipe) PrintTotalNutrients(allNutrients map[int]Nutrient) {
+  for nutrientId, amount := range recipe.nutrientTotals {
+    nutrient := allNutrients[nutrientId]
+    fmt.Printf("%f%s of %s\n", amount, nutrient.units, nutrient.description)
+  }
+}
+
 // ===========================================================================
 
 func main () {
@@ -806,11 +839,11 @@ func main () {
             for foodId, grams := range bestRecipeEver.foodQuantities {
                 food := allFoods[foodId]
                 fmt.Printf("%d grams of %s\n", grams, food.description)
-                fmt.Println(food.nutrients)
-                fmt.Println()
+                food.PrintNutrients(grams)
+                fmt.Println("\n")
             }
             fmt.Println("TOTAL NUTRIENTS")
-            fmt.Println(bestRecipeEver.nutrientTotals)
+            bestRecipeEver.PrintTotalNutrients(allNutrients)
             break
         } else {
             if bestScoreThisRound > bestScoreEver {
