@@ -116,11 +116,15 @@ func getNutrientsAndFoods() (map[int]Nutrient, map[string]int, map[int]Food) {
         units := stripTwiddles(record[1])
         description := stripTwiddles(record[3])
 
-        // Drop the \d:\d entries but keep 18:3 omega-3s
-        matched, err := regexp.MatchString("^(2?\\d:\\d+|1[0-9]:[124567890])", description)
+        // Drop the \d:\d entries but keep three-letter abbreviated ones
+        matched, err := regexp.MatchString("^\\d+:\\d+", description)
         if err != nil { panic(err) }
         if matched {
-          continue
+          matched, err := regexp.MatchString("\\(\\w{3}\\)", description)
+          if err != nil { panic(err) }
+          if !matched {
+            continue
+          }
         }
 
         // Correction of duplicate description field
@@ -173,23 +177,14 @@ func getNutrientsAndFoods() (map[int]Nutrient, map[string]int, map[int]Food) {
             continue
         }
 
-        if strings.Contains(description, "Soy protein isolate") ||
-           strings.Contains(description, "Soy protein concentrate") ||
-           strings.Contains(description, "Leavening agents") ||
-           strings.Contains(description, "Orange-flavor drink") ||
-           strings.Contains(description, "Fruit-flavored drink") ||
-           strings.Contains(description, "Lemonade") ||
-           strings.Contains(description, "Ice creams") ||
+        if strings.Contains(description, "Lemonade") ||
+           strings.Contains(description, "Ice cream") ||
            strings.Contains(description, "dehydrated flakes") ||
            strings.Contains(description, "Alcoholic beverage") ||
            strings.Contains(description, "freeze-dried") ||
-           strings.Contains(description, "MORNINGSTAR") ||
            strings.Contains(description, "Celery flakes") ||
            strings.Contains(description, "dehydrated") ||
-           strings.Contains(description, "Meat extender") ||
-           strings.Contains(description, "with low-calorie sweeteners") ||
            strings.Contains(description, "Candies") ||
-           strings.Contains(description, "instant breakfast powder") ||
            strings.Contains(description, "Tea,") ||
            //strings.Contains(strings.ToLower(description), " dried") ||
 
@@ -211,6 +206,16 @@ func getNutrientsAndFoods() (map[int]Nutrient, map[string]int, map[int]Food) {
            // manufactured, likely to contain additives
            strings.Contains(strings.ToLower(description), "liver cheese,") ||
            strings.Contains(description, "surimi") ||
+           strings.Contains(strings.ToLower(description), "big franks,") || 
+           strings.Contains(description, "MORNINGSTAR") ||
+           strings.Contains(description, "Meat extender") ||
+           strings.Contains(description, "with low-calorie sweeteners") ||
+           strings.Contains(description, "instant breakfast powder") ||
+           strings.Contains(description, "Orange-flavor drink") ||
+           strings.Contains(description, "Fruit-flavored drink") ||
+           strings.Contains(description, "Leavening agents") ||
+           strings.Contains(description, "Reddi Wip") ||
+           strings.Contains(description, "Frozen novelties") ||
 
            // added nutrients
            strings.Contains(description, "Formulated bar,") ||
@@ -218,17 +223,19 @@ func getNutrientsAndFoods() (map[int]Nutrient, map[string]int, map[int]Food) {
            strings.Contains(strings.ToLower(description), " added ") ||
            strings.Contains(strings.ToLower(description), " supplement") ||
            strings.Contains(strings.ToLower(description), " fortified") ||
+           strings.Contains(description, "Soy protein isolate") ||
+           strings.Contains(description, "Soy protein concentrate") ||
 
            // hard to put in a shake
-           strings.Contains(description, " bran") ||
-           strings.Contains(description, " meal") ||
-           strings.Contains(description, " flour") ||
-           strings.Contains(description, "Wheat germ") ||
+           //strings.Contains(description, " bran") ||
+           //strings.Contains(description, " meal") ||
+           //strings.Contains(description, " flour") ||
+           //strings.Contains(description, "Wheat germ") ||
+           strings.Contains(description, "PAM cooking spray") ||  // srsly wtf
 
            // animals
            strings.Contains(strings.ToLower(description), " seal,") ||
            strings.Contains(description, "Seal,") ||
-           strings.Contains(strings.ToLower(description), " beef,") ||
 
            // access
            strings.Contains(description, "Egg Mix, USDA Commodity") ||
@@ -239,7 +246,7 @@ func getNutrientsAndFoods() (map[int]Nutrient, map[string]int, map[int]Food) {
            strings.Contains(strings.ToLower(description), "mollusks") ||
            strings.Contains(description, "Spices,") ||
 
-           // body parts I probably von't eat
+           // body parts I probably won't eat
            strings.Contains(strings.ToLower(description), " brain") ||
            strings.Contains(strings.ToLower(description), " liver ") ||
            strings.Contains(strings.ToLower(description), " liver,") ||
@@ -705,6 +712,12 @@ func (recipe *Recipe) Score(nutrients map[int]Nutrient, allFoods map[int]Food, n
     // 1.6g <= 18:3 n-3 c,c,c (ALA)   // Omega-3
     penalty += recipe.calculatePenaltyForNutrient(nutrientNameToId, "18:3 n-3 c,c,c (ALA)", 1.6, 0, verbose)
 
+    // 1.6g <= 20:5 n-3 (EPA)      // Omega-3
+    penalty += recipe.calculatePenaltyForNutrient(nutrientNameToId, "20:5 n-3 (EPA)", 1.6, 0, verbose)
+
+    // 1.6g <= 22:6 n-3 (DHA)      // Omega-3
+    penalty += recipe.calculatePenaltyForNutrient(nutrientNameToId, "22:6 n-3 (DHA)", 1.6, 0, verbose)
+
     // half water from food
     // 64 fl oz recommended daily
     // 32 fl oz = 946 grams
@@ -742,7 +755,7 @@ func (recipe *Recipe) Score(nutrients map[int]Nutrient, allFoods map[int]Food, n
             numFoods += 1
         }
     }
-    numFoodsPenalty := math.Min(float64(numFoods) / 100, 1) * 20
+    numFoodsPenalty := math.Min(float64(numFoods) / 100, 1) * 10
     if verbose { fmt.Printf("Penalty for num foods: %f\n", numFoodsPenalty) }
     penalty += numFoodsPenalty
 
@@ -751,7 +764,7 @@ func (recipe *Recipe) Score(nutrients map[int]Nutrient, allFoods map[int]Food, n
     for _, grams := range recipe.foodQuantities {
         totalMass += grams
     }
-    massPenalty := math.Min(float64(totalMass) / 3000, 1) * 20
+    massPenalty := math.Min(float64(totalMass) / 3000, 1) * 10
     if verbose { fmt.Printf("Penalty for mass: %f\n", massPenalty) }
     penalty += massPenalty
 
