@@ -115,7 +115,7 @@ func getNutrientsAndFoods() (map[int]Nutrient, map[string]int, map[int]Food) {
         description := stripTwiddles(record[3])
 
         // Drop the \d:\d entries
-        matched, err := regexp.MatchString("\\d+:\\d+", description)
+        matched, err := regexp.MatchString("^\\d+:\\d+$", description)
         if err != nil { panic(err) }
         if matched {
           continue
