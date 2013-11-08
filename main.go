@@ -36,7 +36,9 @@ func (food *Food) PrintNutrients(numGrams int) {
   for _, nutrientInFood := range food.nutrients {
     nutrient := nutrientInFood.nutrient
     totalUnits := nutrientInFood.amountPerG * float64(numGrams)
-    fmt.Printf("%f%s of %s, ", totalUnits, nutrient.units, nutrient.description)
+    if totalUnits > 0 {
+      fmt.Printf("%f%s of %s, ", totalUnits, nutrient.units, nutrient.description)
+    }
   }
 }
 
@@ -115,7 +117,7 @@ func getNutrientsAndFoods() (map[int]Nutrient, map[string]int, map[int]Food) {
         description := stripTwiddles(record[3])
 
         // Drop the \d:\d entries
-        matched, err := regexp.MatchString("^\\d+:\\d+$", description)
+        matched, err := regexp.MatchString("^(2\\d|1[123456790]):\\d+", description)
         if err != nil { panic(err) }
         if matched {
           continue
