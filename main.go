@@ -36,8 +36,8 @@ func (food *Food) PrintNutrients(numGrams int) {
   for _, nutrientInFood := range food.nutrients {
     nutrient := nutrientInFood.nutrient
     totalUnits := nutrientInFood.amountPerG * float64(numGrams)
-    if totalUnits > 0 {
-      fmt.Printf("%f%s of %s, ", totalUnits, nutrient.units, nutrient.description)
+    if totalUnits >= 0.01 {
+      fmt.Printf("%.2f%s of %s, ", totalUnits, nutrient.units, nutrient.description)
     }
   }
 }
@@ -761,7 +761,7 @@ func (recipe *Recipe) Score(nutrients map[int]Nutrient, allFoods map[int]Food, n
 func (recipe *Recipe) PrintTotalNutrients(allNutrients map[int]Nutrient) {
   for nutrientId, amount := range recipe.nutrientTotals {
     nutrient := allNutrients[nutrientId]
-    fmt.Printf("%f%s of %s\n", amount, nutrient.units, nutrient.description)
+    fmt.Printf("%.2f%s of %s\n", amount, nutrient.units, nutrient.description)
   }
 }
 
